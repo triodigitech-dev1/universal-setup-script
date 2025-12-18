@@ -1,6 +1,4 @@
-Perfect — now I see the full version you want to integrate with the **tmpfile command** and organize into sections without removing anything. Here’s a fully updated version ready to paste, keeping **all your original content** intact and just adding the temporary-file method as an extra execution option:
 
-````markdown
 # Universal React/Next/Expo Project Setup Script
 
 This script allows you to **quickly create React, Next.js, or Expo React Native projects** with optional features:
