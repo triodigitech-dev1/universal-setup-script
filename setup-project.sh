@@ -1,11 +1,13 @@
 #!/bin/bash
 
 # ==================================================
-# Universal React / Next / Expo Setup Script
-# FUTURE-PROOF, TOOLCHAIN & TURBOPACK AWARE
+# UNIVERSAL REACT / NEXT / EXPO SETUP SCRIPT
+# COOL VERSION: INTERACTIVE + SAFE + FUTURE-PROOF
 # ==================================================
 
-# ----------- OS Detection (Git Bash Safe) -----------
+echo "🚀 Welcome to the Project Setup Script!"
+
+# ----------- OS Detection -----------
 OS_TYPE=$(uname -s)
 case "$OS_TYPE" in
   Darwin*) PLATFORM="mac" ;;
@@ -13,31 +15,21 @@ case "$OS_TYPE" in
   MINGW*|CYGWIN*|MSYS*) PLATFORM="windows" ;;
   *) PLATFORM="unknown" ;;
 esac
-echo "Detected platform: $PLATFORM"
+echo "🌐 Detected platform: $PLATFORM"
 
 # ----------- Helpers -----------
 normalize() { echo "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'; }
 
 run_tailwind_init() {
+  echo "⚡ Initializing Tailwind CSS..."
   npm exec --yes tailwindcss init -p || echo "⚠️ Tailwind init failed"
 }
 
 clean_next_dev() { [[ -f .next/dev/lock ]] && rm -f .next/dev/lock; }
 
-find_free_port() {
-  local port=3000
-  while :; do
-    if [[ "$PLATFORM" == "windows" ]]; then
-      powershell.exe -Command "(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue)" >/dev/null 2>&1 || { echo $port; return; }
-    else
-      lsof -i:$port >/dev/null 2>&1 || { echo $port; return; }
-    fi
-    port=$((port+1))
-  done
-}
-
-# ----------- UI -----------
-echo "Choose project type:"
+# ----------- User Input -----------
+echo ""
+echo "📂 Select project type:"
 echo "1) React (Web)"
 echo "2) Next.js (Web)"
 echo "3) React Native (Expo)"
@@ -52,7 +44,7 @@ INSTALL_TAILWIND=$(normalize "$INSTALL_TAILWIND")
 
 INSTALL_PWA="n"
 if [[ "$PROJECT_CHOICE" == "2" ]]; then
-  read -p "Enable PWA? (y/n): " INSTALL_PWA
+  read -p "Enable PWA support? (y/n): " INSTALL_PWA
   INSTALL_PWA=$(normalize "$INSTALL_PWA")
 fi
 
@@ -66,80 +58,69 @@ CREATE_COMPONENTS=$(normalize "$CREATE_COMPONENTS")
 CREATE_HOOKS=$(normalize "$CREATE_HOOKS")
 AUTO_START=$(normalize "$AUTO_START")
 
-# ----------- Tailwind Logic -----------
+echo ""
+echo "⏳ Creating project '$PROJECT_NAME'..."
+
+# ----------- Tailwind / PWA Functions -----------
 install_tailwind_react() {
+  echo "🌈 Installing Tailwind for React..."
   npm install -D tailwindcss postcss autoprefixer
   run_tailwind_init
+  echo "✅ Tailwind setup complete"
 }
 
 install_tailwind_rn() {
+  echo "🌈 Installing Tailwind for React Native..."
   npm install tailwindcss-react-native
   run_tailwind_init
+  echo "✅ Tailwind setup complete"
 }
 
 check_tailwind_next() {
-  echo "Checking Tailwind setup for Next.js..."
+  echo "🔍 Checking Tailwind for Next.js..."
   if npm list tailwindcss >/dev/null 2>&1; then
-    VERSION=$(npm list tailwindcss --depth=0 2>/dev/null | grep tailwindcss | sed 's/.*@//')
-    echo "✅ Tailwind detected (v$VERSION)"
-    if [[ -f tailwind.config.js || -f tailwind.config.ts ]]; then
-      echo "✅ Tailwind config present"
-    else
-      echo "⚠️ Tailwind installed but config missing, generating..."
-      run_tailwind_init
-    fi
+    echo "✅ Tailwind detected"
+    [[ ! -f tailwind.config.js ]] && run_tailwind_init
   else
-    echo "❌ Tailwind not found"
+    echo "⚠️ Tailwind not found"
     read -p "Install Tailwind for Next.js? (y/n): " CONFIRM
     CONFIRM=$(normalize "$CONFIRM")
-    if [[ "$CONFIRM" == "y" ]]; then
-      npm install -D tailwindcss postcss autoprefixer
-      run_tailwind_init
-    else
-      echo "Skipping Tailwind setup"
-    fi
+    [[ "$CONFIRM" == "y" ]] && { npm install -D tailwindcss postcss autoprefixer; run_tailwind_init; }
   fi
 }
 
-# ----------- PWA (Next.js only) -----------
 install_pwa_next() {
+  echo "📦 Installing next-pwa..."
   npm install next-pwa
   clean_next_dev
-  grep -q "next-pwa" next.config.js 2>/dev/null || cat >> next.config.js <<EOF
-
+  echo "🔧 Writing valid next.config.js with PWA support..."
+  cat > next.config.js <<EOF
+/** @type {import('next').NextConfig} */
 const withPWA = require('next-pwa')({
-  dest: 'public'
+  dest: 'public',
 });
 
-module.exports = withPWA({
-  reactStrictMode: true,
-});
+const nextConfig = {
+  reactStrictMode: true
+};
+
+module.exports = withPWA(nextConfig);
 EOF
+  echo "✅ PWA configured successfully"
 }
 
-# ----------- Turbopack patch -----------
-patch_next_turbopack() {
-  CONFIG_FILE="next.config.js"
-  if [[ -f "$CONFIG_FILE" ]]; then
-    grep -q "turbopack" "$CONFIG_FILE" || cat >> "$CONFIG_FILE" <<EOF
-
-// Added by setup script to prevent Turbopack warning
-turbopack: {},
-EOF
-    echo "✅ Added empty turbopack config to next.config.js"
-  fi
-}
-
-# ----------- Project Structure -----------
+# ----------- Folder & Metadata Functions -----------
 create_docs_folder() {
+  echo "📄 Creating docs folder..."
   mkdir -p docs
   echo "# Setup" > docs/setup.md
   echo "# Todo" > docs/todo.md
   echo "# Architecture" > docs/architecture.md
+  echo "✅ docs/ folder created"
 }
 
-create_components_folder() { mkdir -p src/components; }
-create_hooks_folder() { mkdir -p src/hooks; }
+create_components_folder() { mkdir -p src/components; echo "✅ components/ folder created"; }
+create_hooks_folder() { mkdir -p src/hooks; echo "✅ hooks/ folder created"; }
 
 create_metadata() {
   cat > project_metadata.json <<EOF
@@ -150,24 +131,26 @@ create_metadata() {
   "created_at": "$(date)"
 }
 EOF
+  echo "📝 project_metadata.json created"
 }
 
 update_readme() {
   if [[ ! -f README.md ]]; then
-    {
-      echo "# $PROJECT_NAME"
-      echo ""
-      echo "## Description"
-      echo "$PROJECT_DESC"
-      echo ""
-      echo "## Setup"
-      echo "- npm install"
-      echo "- npm start / npm run dev / npx expo start"
-    } > README.md
+    cat > README.md <<EOF
+# $PROJECT_NAME
+
+## Description
+$PROJECT_DESC
+
+## Setup
+- npm install
+- npm start / npm run dev / npx expo start
+EOF
+    echo "📘 README.md created"
   fi
 }
 
-# ----------- Project Setup -----------
+# ----------- Project Creation -----------
 if [[ "$PROJECT_CHOICE" == "1" ]]; then
   npx create-react-app "$PROJECT_NAME"
 elif [[ "$PROJECT_CHOICE" == "2" ]]; then
@@ -175,25 +158,23 @@ elif [[ "$PROJECT_CHOICE" == "2" ]]; then
 elif [[ "$PROJECT_CHOICE" == "3" ]]; then
   npx create-expo-app "$PROJECT_NAME"
 else
-  echo "Invalid project type"
-  exit 1
+  echo "❌ Invalid project type"; exit 1
 fi
 
-# ----------- Enter Project Folder (must succeed) -----------
-cd "$PROJECT_NAME" || { echo "Failed to enter project folder"; exit 1; }
+# ----------- Enter Project Folder -----------
+cd "$PROJECT_NAME" || { echo "❌ Failed to enter project folder"; exit 1; }
+echo "📂 Entered project folder: $(pwd)"
 
-# ----------- Post-creation tasks -----------
+# ----------- Post-creation Tasks -----------
 if [[ "$PROJECT_CHOICE" == "1" ]]; then
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_react
 elif [[ "$PROJECT_CHOICE" == "2" ]]; then
   [[ "$INSTALL_TAILWIND" == "y" ]] && check_tailwind_next
   [[ "$INSTALL_PWA" == "y" ]] && install_pwa_next
-  patch_next_turbopack
 elif [[ "$PROJECT_CHOICE" == "3" ]]; then
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_rn
 fi
 
-# ----------- Extras (Always Run) -----------
 [[ "$CREATE_DOCS" == "y" ]] && create_docs_folder
 [[ "$CREATE_COMPONENTS" == "y" ]] && create_components_folder
 [[ "$CREATE_HOOKS" == "y" ]] && create_hooks_folder
@@ -202,14 +183,19 @@ update_readme
 
 # ----------- Auto Start Dev Server -----------
 if [[ "$AUTO_START" == "y" ]]; then
+  echo ""
+  echo "⚡ Starting dev server..."
   if [[ "$PROJECT_CHOICE" == "2" ]]; then
-    echo "Starting Next.js dev server in Webpack mode..."
+    echo "🌐 Next.js dev server (Webpack mode)"
     npm run dev -- --webpack
   elif [[ "$PROJECT_CHOICE" == "1" ]]; then
+    echo "🌐 React (CRA) dev server"
     npm start
   else
+    echo "🌐 Expo dev server"
     npx expo start
   fi
 fi
 
-echo "✅ Project setup complete"
+echo ""
+echo "🎉 Project setup complete! All ready to go!"
