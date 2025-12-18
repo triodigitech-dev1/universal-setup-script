@@ -25,41 +25,43 @@ echo "1) React (Web)"
 echo "2) Next.js (Web)"
 echo "3) React Native (Expo)"
 read -p "Enter number: " PROJECT_CHOICE
+PROJECT_CHOICE=$(echo "$PROJECT_CHOICE" | tr -d '\r')  # Remove Windows carriage return
 
 read -p "Enter project name: " PROJECT_NAME
+PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r')
 
 # ----------- Project description -----------
 read -p "Enter project description / goal: " PROJECT_DESC
+PROJECT_DESC=$(echo "$PROJECT_DESC" | tr -d '\r')
 
 # ----------- Tailwind yes/no -----------
 read -p "Do you want to install Tailwind? (y/n) " INSTALL_TAILWIND
-INSTALL_TAILWIND=${INSTALL_TAILWIND,,} # convert to lowercase
+INSTALL_TAILWIND=$(echo "$INSTALL_TAILWIND" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 
 # ----------- PWA yes/no (web only) -----------
 INSTALL_PWA="n"
 if [[ "$PROJECT_CHOICE" == "1" || "$PROJECT_CHOICE" == "2" ]]; then
   read -p "Do you want to enable PWA support? (y/n) " INSTALL_PWA
-  INSTALL_PWA=${INSTALL_PWA,,}
+  INSTALL_PWA=$(echo "$INSTALL_PWA" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 fi
 
 # ----------- Docs folder -----------
 read -p "Do you want to create docs/ folder with templates? (y/n) " CREATE_DOCS
-CREATE_DOCS=${CREATE_DOCS,,}
+CREATE_DOCS=$(echo "$CREATE_DOCS" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 
 # ----------- Components folder -----------
 read -p "Do you want to create components/ folder? (y/n) " CREATE_COMPONENTS
-CREATE_COMPONENTS=${CREATE_COMPONENTS,,}
+CREATE_COMPONENTS=$(echo "$CREATE_COMPONENTS" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 
 # ----------- Hooks folder -----------
 read -p "Do you want to create hooks/ folder? (y/n) " CREATE_HOOKS
-CREATE_HOOKS=${CREATE_HOOKS,,}
+CREATE_HOOKS=$(echo "$CREATE_HOOKS" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 
 # ----------- Auto-start dev server -----------
 read -p "Do you want to auto-start the dev server? (y/n) " AUTO_START
-AUTO_START=${AUTO_START,,}
+AUTO_START=$(echo "$AUTO_START" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 
 # ----------- Functions for Tailwind & PWA -----------
-
 install_tailwind_react() {
   npm install -D tailwindcss postcss autoprefixer
   npx tailwindcss init -p
@@ -88,7 +90,6 @@ install_pwa_react() {
 }
 
 # ----------- Functions to create folders -----------
-
 create_docs_folder() {
   mkdir -p docs
   echo "# Setup Instructions" > docs/setup.md
@@ -108,7 +109,6 @@ create_hooks_folder() {
 }
 
 # ----------- Metadata -----------
-
 create_metadata() {
   METADATA_FILE="project_metadata.json"
   cat <<EOL > $METADATA_FILE
@@ -125,7 +125,6 @@ EOL
 }
 
 # ----------- README -----------
-
 create_readme() {
   cat <<EOL > README.md
 # $PROJECT_NAME
@@ -141,7 +140,6 @@ EOL
 }
 
 # ----------- Project Setup -----------
-
 if [[ "$PROJECT_CHOICE" == "1" ]]; then
   echo "Setting up React project..."
   npx create-react-app $PROJECT_NAME
@@ -165,7 +163,6 @@ else
 fi
 
 # ----------- Create folders & metadata -----------
-
 [[ "$CREATE_DOCS" == "y" ]] && create_docs_folder
 [[ "$CREATE_COMPONENTS" == "y" ]] && create_components_folder
 [[ "$CREATE_HOOKS" == "y" ]] && create_hooks_folder
@@ -173,7 +170,6 @@ create_metadata
 create_readme
 
 # ----------- Auto-start dev server -----------
-
 if [[ "$AUTO_START" == "y" ]]; then
   if [[ "$PROJECT_CHOICE" == "1" ]]; then
     npm start
