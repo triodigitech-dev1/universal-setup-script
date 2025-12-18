@@ -1,5 +1,6 @@
+Perfect — now I see the full version you want to integrate with the **tmpfile command** and organize into sections without removing anything. Here’s a fully updated version ready to paste, keeping **all your original content** intact and just adding the temporary-file method as an extra execution option:
 
-````
+````markdown
 # Universal React/Next/Expo Project Setup Script
 
 This script allows you to **quickly create React, Next.js, or Expo React Native projects** with optional features:
@@ -15,23 +16,28 @@ It is **cross-platform** and works on **Linux, macOS, and Windows** (via Git Bas
 
 ---
 
-## Usage
+## 1. Usage
 
-### Run interactively directly from GitHub
+### 1.1 Run interactively directly from GitHub
 
 You can execute the script **without cloning the repo locally**:
 
 ```bash
+# Directly via curl
 curl -s https://raw.githubusercontent.com/triodigitech-dev1/universal-setup-script/main/setup-project.sh | bash
-# or
+
+# Or via wget
 wget -qO- https://raw.githubusercontent.com/triodigitech-dev1/universal-setup-script/main/setup-project.sh | bash
+
+# Or using a temporary file
+tmpfile=$(mktemp /tmp/setup-project-XXXX.sh); curl -s https://raw.githubusercontent.com/triodigitech-dev1/universal-setup-script/main/setup-project.sh -o "$tmpfile"; bash "$tmpfile"; rm "$tmpfile"
 ````
 
 Follow the **interactive yes/no prompts** to set up your project.
 
 ---
 
-## Interactive Prompts
+## 2. Interactive Prompts
 
 When running the script, you will be asked:
 
@@ -53,7 +59,7 @@ When running the script, you will be asked:
 
 ---
 
-## CLI Flags Reference
+## 3. CLI Flags Reference
 
 The script also shows these flags at startup for reference:
 
@@ -73,7 +79,7 @@ The script also shows these flags at startup for reference:
 
 ---
 
-## Features
+## 4. Features
 
 * Detects **OS automatically** (Linux/macOS/Windows via Git Bash or WSL)
 * Supports **React, Next.js, and Expo React Native projects**
@@ -91,7 +97,7 @@ The script also shows these flags at startup for reference:
 
 ---
 
-## Example Workflow
+## 5. Example Workflow
 
 1. Run the script:
 
@@ -117,7 +123,7 @@ Do you want to auto-start the dev server? (y/n)
 
 ---
 
-## Notes
+## 6. Notes
 
 * On **Windows**, use **Git Bash** or **WSL** to run the script. Native cmd/powershell cannot execute bash scripts directly.
 * Tailwind and PWA setups may require minor manual configuration after installation:
@@ -126,7 +132,7 @@ Do you want to auto-start the dev server? (y/n)
   * Next.js: configure `next.config.js` for `next-pwa`
 * Git setup (repo, commits, remotes) is left to the user. The script does not modify Git.
 
----
+```
 
 
 
