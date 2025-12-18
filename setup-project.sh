@@ -61,6 +61,26 @@ CREATE_HOOKS=$(echo "$CREATE_HOOKS" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 read -p "Do you want to auto-start the dev server? (y/n) " AUTO_START
 AUTO_START=$(echo "$AUTO_START" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
 
+# ----------- Helper: Clean Next.js dev environment safely -----------
+clean_next_dev() {
+  # Remove stale lock file only
+  if [[ -f .next/dev/lock ]]; then
+    echo "Removing stale Next.js dev lock file..."
+    rm -f .next/dev/lock
+  fi
+
+  # Check if port 3000 is busy
+  if [[ "$PLATFORM" == "windows" ]]; then
+    PORT_IN_USE=$(powershell.exe -Command "(Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue) -ne $null")
+  else
+    PORT_IN_USE=$(lsof -i:3000)
+  fi
+
+  if [[ -n "$PORT_IN_USE" ]]; then
+    echo "Port 3000 is in use. Next.js will pick the next available port automatically."
+  fi
+}
+
 # ----------- Functions for Tailwind & PWA -----------
 install_tailwind_react() {
   npm install -D tailwindcss postcss autoprefixer
@@ -84,10 +104,8 @@ install_pwa_next() {
   npm install next-pwa
   echo "Next.js PWA plugin installed."
 
-  # Check & remove stale lock file if exists
-  if [[ -f .next/dev/lock ]]; then
-    rm -f .next/dev/lock
-  fi
+  # Clean dev environment
+  clean_next_dev
 
   # Configure next.config.js automatically if exists
   if [[ -f next.config.js ]]; then
@@ -216,6 +234,7 @@ if [[ "$AUTO_START" == "y" ]]; then
   if [[ "$PROJECT_CHOICE" == "1" ]]; then
     npm start
   elif [[ "$PROJECT_CHOICE" == "2" ]]; then
+    clean_next_dev
     npm run dev
   elif [[ "$PROJECT_CHOICE" == "3" ]]; then
     npx expo start
