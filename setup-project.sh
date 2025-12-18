@@ -82,7 +82,32 @@ install_tailwind_rn() {
 
 install_pwa_next() {
   npm install next-pwa
-  echo "Next.js PWA plugin installed. Remember to configure next.config.js manually."
+  echo "Next.js PWA plugin installed."
+  # Configure next.config.js automatically
+  if grep -q "next.config.js" <<< "$(ls)"; then
+    echo "Adding PWA config to next.config.js..."
+    cat <<EOL >> next.config.js
+
+const withPWA = require('next-pwa')({
+  dest: 'public'
+});
+
+module.exports = withPWA({
+  reactStrictMode: true,
+});
+EOL
+  fi
+  # Start server briefly to test and then continue
+  npm run dev &
+  SERVER_PID=$!
+  sleep 5
+  if [[ "$PLATFORM" != "windows" ]]; then
+    xdg-open http://localhost:3000 || open http://localhost:3000
+  else
+    start http://localhost:3000
+  fi
+  kill $SERVER_PID
+  echo "PWA test page opened and server stopped."
 }
 
 install_pwa_react() {
@@ -92,9 +117,9 @@ install_pwa_react() {
 # ----------- Functions to create folders -----------
 create_docs_folder() {
   mkdir -p docs
-  echo "# Setup Instructions" > docs/setup.md
-  echo "# Todo List" > docs/todo.md
-  echo "# Architecture" > docs/architecture.md
+  [[ ! -f docs/setup.md ]] && echo "# Setup Instructions" > docs/setup.md
+  [[ ! -f docs/todo.md ]] && echo "# Todo List" > docs/todo.md
+  [[ ! -f docs/architecture.md ]] && echo "# Architecture" > docs/architecture.md
   echo "Docs folder created with template files."
 }
 
@@ -124,9 +149,10 @@ EOL
   echo "Metadata file created: $METADATA_FILE"
 }
 
-# ----------- README -----------
-create_readme() {
-  cat <<EOL > README.md
+# ----------- README (append only missing parts) -----------
+update_readme() {
+  if [[ ! -f README.md ]]; then
+    cat <<EOL > README.md
 # $PROJECT_NAME
 
 ## Description
@@ -136,7 +162,16 @@ $PROJECT_DESC
 - Install dependencies: npm install
 - Run dev server: npm start / npm run dev / npx expo start
 EOL
-  echo "README.md created."
+    echo "README.md created."
+  else
+    echo "README.md exists. Appending missing sections..."
+    grep -q "## Setup" README.md || cat <<EOL >> README.md
+
+## Setup
+- Install dependencies: npm install
+- Run dev server: npm start / npm run dev / npx expo start
+EOL
+  fi
 }
 
 # ----------- Project Setup -----------
@@ -167,7 +202,7 @@ fi
 [[ "$CREATE_COMPONENTS" == "y" ]] && create_components_folder
 [[ "$CREATE_HOOKS" == "y" ]] && create_hooks_folder
 create_metadata
-create_readme
+update_readme
 
 # ----------- Auto-start dev server -----------
 if [[ "$AUTO_START" == "y" ]]; then
