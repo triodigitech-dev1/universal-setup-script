@@ -1,34 +1,22 @@
 #!/bin/bash
 
-# ==================================================
+# ===========================
 # Universal React / Next / Expo Setup Script
-# FINAL – OS AWARE – WINDOWS SAFE
-# ==================================================
+# (Safe, Non-Hanging Version)
+# ===========================
 
-# ----------- OS Detection (Git Bash Safe) -----------
-OS_TYPE=$(uname -s)
+set -e
 
-case "$OS_TYPE" in
-  Darwin*) PLATFORM="mac" ;;
-  Linux*) PLATFORM="linux" ;;
-  MINGW*|CYGWIN*|MSYS*) PLATFORM="windows" ;;
-  *) PLATFORM="unknown" ;;
-esac
-
-echo "Detected platform: $PLATFORM"
-
-# ----------- Helpers -----------
-normalize() {
-  echo "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'
-}
-
-run_tailwind_init() {
-  if [[ "$PLATFORM" == "windows" ]]; then
-    npx tailwindcss init -p
-  else
-    ./node_modules/.bin/tailwindcss init -p
-  fi
-}
+# ----------- Detect OS -----------
+OS_TYPE=$(uname)
+if [[ "$OS_TYPE" == "Darwin" ]]; then
+  PLATFORM="mac"
+elif [[ "$OS_TYPE" == "Linux" ]]; then
+  PLATFORM="linux"
+else
+  PLATFORM="windows"
+fi
+echo "Detected OS: $PLATFORM"
 
 clean_next_dev() {
   [[ -f .next/dev/lock ]] && rm -f .next/dev/lock
@@ -72,30 +60,58 @@ if [[ "$PROJECT_CHOICE" == "1" || "$PROJECT_CHOICE" == "2" ]]; then
   INSTALL_PWA=$(normalize "$INSTALL_PWA")
 fi
 
-read -p "Create docs folder? (y/n): " CREATE_DOCS
-read -p "Create components folder? (y/n): " CREATE_COMPONENTS
-read -p "Create hooks folder? (y/n): " CREATE_HOOKS
-read -p "Auto-start dev server? (y/n): " AUTO_START
+# ----------- Docs / Components / Hooks -----------
+read -p "Create docs/ folder? (y/n) " CREATE_DOCS
+read -p "Create components/ folder? (y/n) " CREATE_COMPONENTS
+read -p "Create hooks/ folder? (y/n) " CREATE_HOOKS
+read -p "Auto-start dev server? (y/n) " AUTO_START
+
+normalize() {
+  echo "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'
+}
 
 CREATE_DOCS=$(normalize "$CREATE_DOCS")
 CREATE_COMPONENTS=$(normalize "$CREATE_COMPONENTS")
 CREATE_HOOKS=$(normalize "$CREATE_HOOKS")
 AUTO_START=$(normalize "$AUTO_START")
 
-# ----------- Installers -----------
+# ----------- Helpers -----------
+
+clean_next_dev() {
+  [[ -f .next/dev/lock ]] && rm -f .next/dev/lock
+}
+
+find_free_port() {
+  local port=3000
+  while :; do
+    if [[ "$PLATFORM" == "windows" ]]; then
+      powershell.exe -Command "(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue)" >/dev/null 2>&1 || {
+        echo $port; return;
+      }
+    else
+      lsof -i:$port >/dev/null 2>&1 || {
+        echo $port; return;
+      }
+    fi
+    port=$((port + 1))
+  done
+}
+
+# ----------- Tailwind / PWA -----------
+
 install_tailwind_react() {
   npm install -D tailwindcss postcss autoprefixer
-  run_tailwind_init || echo "⚠️ Tailwind init failed (continuing)"
+  npx tailwindcss init -p
 }
 
 install_tailwind_next() {
   npm install -D tailwindcss postcss autoprefixer
-  run_tailwind_init || echo "⚠️ Tailwind init failed (continuing)"
+  npx tailwindcss init -p
 }
 
 install_tailwind_rn() {
   npm install tailwindcss-react-native
-  run_tailwind_init || echo "⚠️ Tailwind init failed (continuing)"
+  npx tailwindcss init
 }
 
 install_pwa_next() {
@@ -113,7 +129,12 @@ module.exports = withPWA({
 EOF
 }
 
-# ----------- Structure -----------
+install_pwa_react() {
+  echo "Enable service worker manually in CRA."
+}
+
+# ----------- Folders -----------
+
 create_docs_folder() {
   mkdir -p docs
   echo "# Setup" > docs/setup.md
@@ -129,16 +150,22 @@ create_hooks_folder() {
   mkdir -p src/hooks
 }
 
+# ----------- Metadata -----------
+
 create_metadata() {
   cat > project_metadata.json <<EOF
 {
   "project_name": "$PROJECT_NAME",
   "description": "$PROJECT_DESC",
-  "platform": "$PLATFORM",
-  "created_at": "$(date)"
+  "type": "$PROJECT_CHOICE",
+  "tailwind": "$INSTALL_TAILWIND",
+  "pwa": "$INSTALL_PWA",
+  "created": "$(date)"
 }
 EOF
 }
+
+# ----------- README (NON-BLOCKING) -----------
 
 update_readme() {
   if [[ ! -f README.md ]]; then
@@ -163,28 +190,29 @@ update_readme() {
 }
 
 # ----------- Project Setup -----------
+
 if [[ "$PROJECT_CHOICE" == "1" ]]; then
   npx create-react-app "$PROJECT_NAME"
-  cd "$PROJECT_NAME" || exit 1
+  cd "$PROJECT_NAME"
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_react
 
 elif [[ "$PROJECT_CHOICE" == "2" ]]; then
   npx create-next-app@latest "$PROJECT_NAME"
-  cd "$PROJECT_NAME" || exit 1
+  cd "$PROJECT_NAME"
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_next
   [[ "$INSTALL_PWA" == "y" ]] && install_pwa_next
 
 elif [[ "$PROJECT_CHOICE" == "3" ]]; then
   npx create-expo-app "$PROJECT_NAME"
-  cd "$PROJECT_NAME" || exit 1
+  cd "$PROJECT_NAME"
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_rn
-
 else
-  echo "Invalid project type"
+  echo "Invalid choice"
   exit 1
 fi
 
-# ----------- Extras (ALWAYS RUN) -----------
+# ----------- Extras -----------
+
 [[ "$CREATE_DOCS" == "y" ]] && create_docs_folder
 [[ "$CREATE_COMPONENTS" == "y" ]] && create_components_folder
 [[ "$CREATE_HOOKS" == "y" ]] && create_hooks_folder
@@ -192,7 +220,8 @@ fi
 create_metadata
 update_readme
 
-# ----------- Auto Start -----------
+# ----------- Auto-start -----------
+
 if [[ "$AUTO_START" == "y" ]]; then
   if [[ "$PROJECT_CHOICE" == "2" ]]; then
     clean_next_dev
