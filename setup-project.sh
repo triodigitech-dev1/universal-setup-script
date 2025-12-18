@@ -2,7 +2,7 @@
 
 # ==================================================
 # UNIVERSAL REACT / NEXT / EXPO SETUP SCRIPT
-# COOL VERSION: SAFE Webpack + PWA + Tailwind
+# COOL VERSION: SAFE Webpack + PWA + Tailwind + Build Fix
 # ==================================================
 
 echo "🚀 Welcome to the Project Setup Script!"
@@ -57,6 +57,7 @@ echo ""
 echo "⏳ Creating project '$PROJECT_NAME'..."
 
 # ----------- Tailwind / PWA Functions -----------
+
 install_tailwind_react() {
   echo "🌈 Installing Tailwind for React..."
   npm install -D tailwindcss postcss autoprefixer
@@ -74,8 +75,16 @@ install_tailwind_rn() {
 check_tailwind_next() {
   echo "🔍 Checking Tailwind for Next.js..."
   if npm list tailwindcss >/dev/null 2>&1; then
-    echo "✅ Tailwind detected"
-    [[ ! -f tailwind.config.js ]] && run_tailwind_init
+    VERSION=$(npm list tailwindcss --depth=0 2>/dev/null | grep tailwindcss | sed 's/.*@//')
+    echo "✅ Tailwind detected (v$VERSION)"
+    if [[ -f tailwind.config.js || -f tailwind.config.ts ]]; then
+      echo "✅ Tailwind config already exists, skipping init"
+    else
+      echo "⚠️ Tailwind installed but config missing"
+      read -p "Do you want to generate tailwind.config.js now? (y/n): " CONFIRM
+      CONFIRM=$(normalize "$CONFIRM")
+      [[ "$CONFIRM" == "y" ]] && run_tailwind_init
+    fi
   else
     echo "⚠️ Tailwind not found"
     read -p "Install Tailwind for Next.js? (y/n): " CONFIRM
@@ -141,6 +150,7 @@ $PROJECT_DESC
 ## Setup
 - npm install
 - npm start / npm run dev / npx expo start
+- Production PWA: npm run build && npm run start
 EOF
     echo "📘 README.md created"
   fi
@@ -177,10 +187,12 @@ fi
 create_metadata
 update_readme
 
-# ----------- Ensure Webpack in dev scripts -----------
+# ----------- Force Webpack for dev and build (Next.js) -----------
 if [[ "$PROJECT_CHOICE" == "2" ]]; then
-  echo "🔧 Overwriting package.json dev script to force Webpack..."
+  echo "🔧 Overwriting package.json scripts to force Webpack for dev and build..."
   npm pkg set scripts.dev="next dev --webpack"
+  npm pkg set scripts.build="next build --webpack"
+  npm pkg set scripts.start="next start"
 fi
 
 # ----------- Auto Start Dev Server -----------
@@ -201,3 +213,4 @@ fi
 
 echo ""
 echo "🎉 Project setup complete! Ready for development."
+echo "💡 To test production PWA: npm run build && npm run start"
