@@ -1,117 +1,107 @@
 #!/bin/bash
 
-# ===========================
-# Universal React/Next/Expo Setup Script (Final Safe Version)
-# ===========================
+# ==================================================
+# Universal React / Next / Expo Setup Script
+# FINAL – OS AWARE – WINDOWS SAFE
+# ==================================================
 
-# ----------- Detect OS -----------
-OS_TYPE=$(uname)
-if [[ "$OS_TYPE" == "Darwin" ]]; then
-  PLATFORM="mac"
-elif [[ "$OS_TYPE" == "Linux" ]]; then
-  PLATFORM="linux"
-else
-  PLATFORM="windows"
-fi
-echo "Detected OS: $PLATFORM"
+# ----------- OS Detection (Git Bash Safe) -----------
+OS_TYPE=$(uname -s)
 
-# ----------- Show CLI flags help -----------
-echo "Available CLI flags:"
-echo "--react [project_name] --next [project_name] --expo [project_name] --tailwind --pwa --docs --components --hooks --autostart"
+case "$OS_TYPE" in
+  Darwin*) PLATFORM="mac" ;;
+  Linux*) PLATFORM="linux" ;;
+  MINGW*|CYGWIN*|MSYS*) PLATFORM="windows" ;;
+  *) PLATFORM="unknown" ;;
+esac
 
-# ----------- Project type selection -----------
-echo "Choose project type:"
-echo "1) React (Web)"
-echo "2) Next.js (Web)"
-echo "3) React Native (Expo)"
-read -p "Enter number: " PROJECT_CHOICE
-PROJECT_CHOICE=$(echo "$PROJECT_CHOICE" | tr -d '\r')
+echo "Detected platform: $PLATFORM"
 
-read -p "Enter project name: " PROJECT_NAME
-PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r')
+# ----------- Helpers -----------
+normalize() {
+  echo "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'
+}
 
-# ----------- Project description -----------
-read -p "Enter project description / goal: " PROJECT_DESC
-PROJECT_DESC=$(echo "$PROJECT_DESC" | tr -d '\r')
-
-# ----------- Tailwind yes/no -----------
-read -p "Do you want to install Tailwind? (y/n) " INSTALL_TAILWIND
-INSTALL_TAILWIND=$(echo "$INSTALL_TAILWIND" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-
-# ----------- PWA yes/no (web only) -----------
-INSTALL_PWA="n"
-if [[ "$PROJECT_CHOICE" == "1" || "$PROJECT_CHOICE" == "2" ]]; then
-  read -p "Do you want to enable PWA support? (y/n) " INSTALL_PWA
-  INSTALL_PWA=$(echo "$INSTALL_PWA" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-fi
-
-# ----------- Docs folder -----------
-read -p "Do you want to create docs/ folder with templates? (y/n) " CREATE_DOCS
-CREATE_DOCS=$(echo "$CREATE_DOCS" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-
-# ----------- Components folder -----------
-read -p "Do you want to create components/ folder? (y/n) " CREATE_COMPONENTS
-CREATE_COMPONENTS=$(echo "$CREATE_COMPONENTS" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-
-# ----------- Hooks folder -----------
-read -p "Do you want to create hooks/ folder? (y/n) " CREATE_HOOKS
-CREATE_HOOKS=$(echo "$CREATE_HOOKS" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-
-# ----------- Auto-start dev server -----------
-read -p "Do you want to auto-start the dev server? (y/n) " AUTO_START
-AUTO_START=$(echo "$AUTO_START" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
-
-# ----------- Helper: Clean Next.js dev environment safely -----------
-clean_next_dev() {
-  if [[ -f .next/dev/lock ]]; then
-    echo "Removing stale Next.js dev lock file..."
-    rm -f .next/dev/lock
+run_tailwind_init() {
+  if [[ "$PLATFORM" == "windows" ]]; then
+    npx tailwindcss init -p
+  else
+    ./node_modules/.bin/tailwindcss init -p
   fi
 }
 
-# ----------- Helper: Find free port -----------
+clean_next_dev() {
+  [[ -f .next/dev/lock ]] && rm -f .next/dev/lock
+}
+
 find_free_port() {
   local port=3000
-  while true; do
+  while :; do
     if [[ "$PLATFORM" == "windows" ]]; then
-      IN_USE=$(powershell.exe -Command "(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue) -ne $null")
+      powershell.exe -Command "(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue)" >/dev/null 2>&1 || {
+        echo $port; return;
+      }
     else
-      IN_USE=$(lsof -i:$port)
-    fi
-    if [[ -z "$IN_USE" ]]; then
-      echo $port
-      return
+      lsof -i:$port >/dev/null 2>&1 || {
+        echo $port; return;
+      }
     fi
     port=$((port + 1))
   done
 }
 
-# ----------- Functions for Tailwind & PWA -----------
+# ----------- UI -----------
+echo "Choose project type:"
+echo "1) React (Web)"
+echo "2) Next.js (Web)"
+echo "3) React Native (Expo)"
+read -p "Enter number: " PROJECT_CHOICE
+PROJECT_CHOICE=$(normalize "$PROJECT_CHOICE")
+
+read -p "Enter project name: " PROJECT_NAME
+PROJECT_NAME=$(normalize "$PROJECT_NAME")
+
+read -p "Enter project description: " PROJECT_DESC
+
+read -p "Install Tailwind? (y/n): " INSTALL_TAILWIND
+INSTALL_TAILWIND=$(normalize "$INSTALL_TAILWIND")
+
+INSTALL_PWA="n"
+if [[ "$PROJECT_CHOICE" == "1" || "$PROJECT_CHOICE" == "2" ]]; then
+  read -p "Enable PWA? (y/n): " INSTALL_PWA
+  INSTALL_PWA=$(normalize "$INSTALL_PWA")
+fi
+
+read -p "Create docs folder? (y/n): " CREATE_DOCS
+read -p "Create components folder? (y/n): " CREATE_COMPONENTS
+read -p "Create hooks folder? (y/n): " CREATE_HOOKS
+read -p "Auto-start dev server? (y/n): " AUTO_START
+
+CREATE_DOCS=$(normalize "$CREATE_DOCS")
+CREATE_COMPONENTS=$(normalize "$CREATE_COMPONENTS")
+CREATE_HOOKS=$(normalize "$CREATE_HOOKS")
+AUTO_START=$(normalize "$AUTO_START")
+
+# ----------- Installers -----------
 install_tailwind_react() {
   npm install -D tailwindcss postcss autoprefixer
-  npx tailwindcss init -p
-  echo "Tailwind installed for React project."
+  run_tailwind_init || echo "⚠️ Tailwind init failed (continuing)"
 }
 
 install_tailwind_next() {
   npm install -D tailwindcss postcss autoprefixer
-  npx tailwindcss init -p
-  echo "Tailwind installed for Next.js project."
+  run_tailwind_init || echo "⚠️ Tailwind init failed (continuing)"
 }
 
 install_tailwind_rn() {
   npm install tailwindcss-react-native
-  npx tailwindcss init
-  echo "Tailwind installed for React Native project."
+  run_tailwind_init || echo "⚠️ Tailwind init failed (continuing)"
 }
 
 install_pwa_next() {
   npm install next-pwa
-  echo "Next.js PWA plugin installed."
   clean_next_dev
-  if [[ -f next.config.js ]]; then
-    echo "Adding PWA config to next.config.js..."
-    cat <<EOL >> next.config.js
+  grep -q "next-pwa" next.config.js 2>/dev/null || cat >> next.config.js <<EOF
 
 const withPWA = require('next-pwa')({
   dest: 'public'
@@ -120,138 +110,99 @@ const withPWA = require('next-pwa')({
 module.exports = withPWA({
   reactStrictMode: true,
 });
-EOL
-  fi
+EOF
 }
 
-install_pwa_react() {
-  echo "Enable service worker manually in CRA to complete PWA setup."
-}
-
-# ----------- Functions to create folders -----------
+# ----------- Structure -----------
 create_docs_folder() {
   mkdir -p docs
-  [[ ! -f docs/setup.md ]] && echo "# Setup Instructions" > docs/setup.md
-  [[ ! -f docs/todo.md ]] && echo "# Todo List" > docs/todo.md
-  [[ ! -f docs/architecture.md ]] && echo "# Architecture" > docs/architecture.md
-  echo "Docs folder created with template files."
+  echo "# Setup" > docs/setup.md
+  echo "# Todo" > docs/todo.md
+  echo "# Architecture" > docs/architecture.md
 }
 
 create_components_folder() {
   mkdir -p src/components
-  echo "Components folder created."
 }
 
 create_hooks_folder() {
   mkdir -p src/hooks
-  echo "Hooks folder created."
 }
 
-# ----------- Metadata -----------
 create_metadata() {
-  METADATA_FILE="project_metadata.json"
-  cat <<EOL > $METADATA_FILE
+  cat > project_metadata.json <<EOF
 {
   "project_name": "$PROJECT_NAME",
-  "project_description": "$PROJECT_DESC",
-  "project_type": "$PROJECT_CHOICE",
-  "tailwind": "$INSTALL_TAILWIND",
-  "pwa": "$INSTALL_PWA",
+  "description": "$PROJECT_DESC",
+  "platform": "$PLATFORM",
   "created_at": "$(date)"
 }
-EOL
-  echo "Metadata file created: $METADATA_FILE"
+EOF
 }
 
-# ----------- README -----------
 update_readme() {
   if [[ ! -f README.md ]]; then
-    cat <<EOL > README.md
-# $PROJECT_NAME
-
-## Description
-$PROJECT_DESC
-
-## Setup
-- Install dependencies: npm install
-- Run dev server: npm start / npm run dev / npx expo start
-EOL
-    echo "README.md created."
+    {
+      echo "# $PROJECT_NAME"
+      echo ""
+      echo "## Description"
+      echo "$PROJECT_DESC"
+      echo ""
+      echo "## Setup"
+      echo "- npm install"
+      echo "- npm start / npm run dev / npx expo start"
+    } > README.md
   else
-    echo "README.md exists. Appending missing sections..."
-    grep -q "## Setup" README.md || cat <<EOL >> README.md
-
-## Setup
-- Install dependencies: npm install
-- Run dev server: npm start / npm run dev / npx expo start
-EOL
+    grep -q "## Setup" README.md || {
+      echo ""
+      echo "## Setup"
+      echo "- npm install"
+      echo "- npm start / npm run dev / npx expo start"
+    } >> README.md
   fi
 }
 
 # ----------- Project Setup -----------
 if [[ "$PROJECT_CHOICE" == "1" ]]; then
-  echo "Setting up React project..."
-  npx create-react-app $PROJECT_NAME
-  cd $PROJECT_NAME || exit
+  npx create-react-app "$PROJECT_NAME"
+  cd "$PROJECT_NAME" || exit 1
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_react
-  [[ "$INSTALL_PWA" == "y" ]] && install_pwa_react
 
 elif [[ "$PROJECT_CHOICE" == "2" ]]; then
-  echo "Setting up Next.js project..."
-  npx create-next-app@latest $PROJECT_NAME
-  cd $PROJECT_NAME || exit
+  npx create-next-app@latest "$PROJECT_NAME"
+  cd "$PROJECT_NAME" || exit 1
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_next
   [[ "$INSTALL_PWA" == "y" ]] && install_pwa_next
 
 elif [[ "$PROJECT_CHOICE" == "3" ]]; then
-  echo "Setting up Expo React Native project..."
-  npx create-expo-app $PROJECT_NAME
-  cd $PROJECT_NAME || exit
+  npx create-expo-app "$PROJECT_NAME"
+  cd "$PROJECT_NAME" || exit 1
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_rn
 
 else
-  echo "Invalid choice!"
+  echo "Invalid project type"
   exit 1
 fi
 
-# ----------- Create folders & metadata -----------
+# ----------- Extras (ALWAYS RUN) -----------
 [[ "$CREATE_DOCS" == "y" ]] && create_docs_folder
 [[ "$CREATE_COMPONENTS" == "y" ]] && create_components_folder
 [[ "$CREATE_HOOKS" == "y" ]] && create_hooks_folder
+
 create_metadata
 update_readme
 
-# ----------- Auto-start dev server with free port & safe termination -----------
+# ----------- Auto Start -----------
 if [[ "$AUTO_START" == "y" ]]; then
-  if [[ "$PROJECT_CHOICE" == "1" ]]; then
-    npm start
-  elif [[ "$PROJECT_CHOICE" == "2" ]]; then
+  if [[ "$PROJECT_CHOICE" == "2" ]]; then
     clean_next_dev
-    FREE_PORT=$(find_free_port)
-    echo "Starting Next.js dev server on port $FREE_PORT..."
-
-    # Start server in background
-    PORT=$FREE_PORT npm run dev &
-    SERVER_PID=$!
-
-    # Trap termination signals (Ctrl+C, etc.)
-    trap 'echo "Stopping Next.js server..."; kill $SERVER_PID; clean_next_dev; exit' SIGINT SIGTERM
-
-    sleep 5
-    # Open browser automatically
-    if [[ "$PLATFORM" == "windows" ]]; then
-      start http://localhost:$FREE_PORT
-    elif [[ "$PLATFORM" == "mac" ]]; then
-      open http://localhost:$FREE_PORT
-    else
-      xdg-open http://localhost:$FREE_PORT || echo "Open browser at http://localhost:$FREE_PORT"
-    fi
-
-    # Wait for server to exit
-    wait $SERVER_PID
-  elif [[ "$PROJECT_CHOICE" == "3" ]]; then
+    PORT=$(find_free_port)
+    PORT=$PORT npm run dev
+  elif [[ "$PROJECT_CHOICE" == "1" ]]; then
+    npm start
+  else
     npx expo start
   fi
 fi
 
-echo "✅ Project setup complete!"
+echo "✅ Project setup complete"
