@@ -2,32 +2,38 @@
 
 # ==================================================
 # Universal React / Next / Expo Setup Script
-# FINAL – OS AWARE – TOOLCHAIN AWARE
+# FUTURE-PROOF, TOOLCHAIN & TURBOPACK AWARE
 # ==================================================
 
 # ----------- OS Detection (Git Bash Safe) -----------
 OS_TYPE=$(uname -s)
-
 case "$OS_TYPE" in
   Darwin*) PLATFORM="mac" ;;
   Linux*) PLATFORM="linux" ;;
   MINGW*|CYGWIN*|MSYS*) PLATFORM="windows" ;;
   *) PLATFORM="unknown" ;;
 esac
-
 echo "Detected platform: $PLATFORM"
 
 # ----------- Helpers -----------
-normalize() {
-  echo "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'
-}
+normalize() { echo "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'; }
 
 run_tailwind_init() {
-  npm exec --yes tailwindcss init -p || return 1
+  npm exec --yes tailwindcss init -p || echo "⚠️ Tailwind init failed"
 }
 
-clean_next_dev() {
-  [[ -f .next/dev/lock ]] && rm -f .next/dev/lock
+clean_next_dev() { [[ -f .next/dev/lock ]] && rm -f .next/dev/lock; }
+
+find_free_port() {
+  local port=3000
+  while :; do
+    if [[ "$PLATFORM" == "windows" ]]; then
+      powershell.exe -Command "(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue)" >/dev/null 2>&1 || { echo $port; return; }
+    else
+      lsof -i:$port >/dev/null 2>&1 || { echo $port; return; }
+    fi
+    port=$((port+1))
+  done
 }
 
 # ----------- UI -----------
@@ -61,39 +67,34 @@ CREATE_HOOKS=$(normalize "$CREATE_HOOKS")
 AUTO_START=$(normalize "$AUTO_START")
 
 # ----------- Tailwind Logic -----------
-
 install_tailwind_react() {
   npm install -D tailwindcss postcss autoprefixer
-  run_tailwind_init || echo "⚠️ Tailwind init failed"
+  run_tailwind_init
 }
 
 install_tailwind_rn() {
   npm install tailwindcss-react-native
-  run_tailwind_init || echo "⚠️ Tailwind init failed"
+  run_tailwind_init
 }
 
 check_tailwind_next() {
   echo "Checking Tailwind setup for Next.js..."
-
   if npm list tailwindcss >/dev/null 2>&1; then
     VERSION=$(npm list tailwindcss --depth=0 2>/dev/null | grep tailwindcss | sed 's/.*@//')
     echo "✅ Tailwind detected (v$VERSION)"
-
     if [[ -f tailwind.config.js || -f tailwind.config.ts ]]; then
       echo "✅ Tailwind config present"
     else
-      echo "⚠️ Tailwind installed but config missing"
-      echo "Generating config..."
-      run_tailwind_init || echo "⚠️ Could not generate Tailwind config"
+      echo "⚠️ Tailwind installed but config missing, generating..."
+      run_tailwind_init
     fi
   else
     echo "❌ Tailwind not found"
-    read -p "Install Tailwind for this Next.js project? (y/n): " CONFIRM
+    read -p "Install Tailwind for Next.js? (y/n): " CONFIRM
     CONFIRM=$(normalize "$CONFIRM")
-
     if [[ "$CONFIRM" == "y" ]]; then
       npm install -D tailwindcss postcss autoprefixer
-      run_tailwind_init || echo "⚠️ Tailwind init failed"
+      run_tailwind_init
     else
       echo "Skipping Tailwind setup"
     fi
@@ -104,7 +105,6 @@ check_tailwind_next() {
 install_pwa_next() {
   npm install next-pwa
   clean_next_dev
-
   grep -q "next-pwa" next.config.js 2>/dev/null || cat >> next.config.js <<EOF
 
 const withPWA = require('next-pwa')({
@@ -117,8 +117,20 @@ module.exports = withPWA({
 EOF
 }
 
-# ----------- Structure -----------
+# ----------- Turbopack patch -----------
+patch_next_turbopack() {
+  CONFIG_FILE="next.config.js"
+  if [[ -f "$CONFIG_FILE" ]]; then
+    grep -q "turbopack" "$CONFIG_FILE" || cat >> "$CONFIG_FILE" <<EOF
 
+// Added by setup script to prevent Turbopack warning
+turbopack: {},
+EOF
+    echo "✅ Added empty turbopack config to next.config.js"
+  fi
+}
+
+# ----------- Project Structure -----------
 create_docs_folder() {
   mkdir -p docs
   echo "# Setup" > docs/setup.md
@@ -126,13 +138,8 @@ create_docs_folder() {
   echo "# Architecture" > docs/architecture.md
 }
 
-create_components_folder() {
-  mkdir -p src/components
-}
-
-create_hooks_folder() {
-  mkdir -p src/hooks
-}
+create_components_folder() { mkdir -p src/components; }
+create_hooks_folder() { mkdir -p src/hooks; }
 
 create_metadata() {
   cat > project_metadata.json <<EOF
@@ -161,42 +168,43 @@ update_readme() {
 }
 
 # ----------- Project Setup -----------
-
 if [[ "$PROJECT_CHOICE" == "1" ]]; then
   npx create-react-app "$PROJECT_NAME"
-  cd "$PROJECT_NAME" || exit 1
-  [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_react
-
 elif [[ "$PROJECT_CHOICE" == "2" ]]; then
   npx create-next-app@latest "$PROJECT_NAME"
-  cd "$PROJECT_NAME" || exit 1
-  [[ "$INSTALL_TAILWIND" == "y" ]] && check_tailwind_next
-  [[ "$INSTALL_PWA" == "y" ]] && install_pwa_next
-
 elif [[ "$PROJECT_CHOICE" == "3" ]]; then
   npx create-expo-app "$PROJECT_NAME"
-  cd "$PROJECT_NAME" || exit 1
-  [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_rn
-
 else
   echo "Invalid project type"
   exit 1
 fi
 
-# ----------- Extras (ALWAYS RUN) -----------
+# ----------- Enter Project Folder (must succeed) -----------
+cd "$PROJECT_NAME" || { echo "Failed to enter project folder"; exit 1; }
 
+# ----------- Post-creation tasks -----------
+if [[ "$PROJECT_CHOICE" == "1" ]]; then
+  [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_react
+elif [[ "$PROJECT_CHOICE" == "2" ]]; then
+  [[ "$INSTALL_TAILWIND" == "y" ]] && check_tailwind_next
+  [[ "$INSTALL_PWA" == "y" ]] && install_pwa_next
+  patch_next_turbopack
+elif [[ "$PROJECT_CHOICE" == "3" ]]; then
+  [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_rn
+fi
+
+# ----------- Extras (Always Run) -----------
 [[ "$CREATE_DOCS" == "y" ]] && create_docs_folder
 [[ "$CREATE_COMPONENTS" == "y" ]] && create_components_folder
 [[ "$CREATE_HOOKS" == "y" ]] && create_hooks_folder
-
 create_metadata
 update_readme
 
-# ----------- Auto Start -----------
-
+# ----------- Auto Start Dev Server -----------
 if [[ "$AUTO_START" == "y" ]]; then
   if [[ "$PROJECT_CHOICE" == "2" ]]; then
-    npm run dev
+    echo "Starting Next.js dev server in Webpack mode..."
+    npm run dev -- --webpack
   elif [[ "$PROJECT_CHOICE" == "1" ]]; then
     npm start
   else
