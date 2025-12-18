@@ -25,7 +25,7 @@ echo "1) React (Web)"
 echo "2) Next.js (Web)"
 echo "3) React Native (Expo)"
 read -p "Enter number: " PROJECT_CHOICE
-PROJECT_CHOICE=$(echo "$PROJECT_CHOICE" | tr -d '\r')  # Remove Windows carriage return
+PROJECT_CHOICE=$(echo "$PROJECT_CHOICE" | tr -d '\r')  
 
 read -p "Enter project name: " PROJECT_NAME
 PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r')
@@ -83,8 +83,14 @@ install_tailwind_rn() {
 install_pwa_next() {
   npm install next-pwa
   echo "Next.js PWA plugin installed."
-  # Configure next.config.js automatically
-  if grep -q "next.config.js" <<< "$(ls)"; then
+
+  # Check & remove stale lock file if exists
+  if [[ -f .next/dev/lock ]]; then
+    rm -f .next/dev/lock
+  fi
+
+  # Configure next.config.js automatically if exists
+  if [[ -f next.config.js ]]; then
     echo "Adding PWA config to next.config.js..."
     cat <<EOL >> next.config.js
 
@@ -97,7 +103,8 @@ module.exports = withPWA({
 });
 EOL
   fi
-  # Start server briefly to test and then continue
+
+  # Start server briefly to test PWA then continue
   npm run dev &
   SERVER_PID=$!
   sleep 5
