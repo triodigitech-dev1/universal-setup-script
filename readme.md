@@ -1,5 +1,4 @@
 
-
 ````
 # Universal React/Next/Expo Project Setup Script
 
