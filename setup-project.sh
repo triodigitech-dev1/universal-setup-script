@@ -18,34 +18,46 @@ else
 fi
 echo "Detected OS: $PLATFORM"
 
-# ----------- Show CLI flags help -----------
-echo "Available CLI flags:"
-echo "--react [project_name] --next [project_name] --expo [project_name] --tailwind --pwa --docs --components --hooks --autostart"
+clean_next_dev() {
+  [[ -f .next/dev/lock ]] && rm -f .next/dev/lock
+}
 
-# ----------- Project type selection -----------
+find_free_port() {
+  local port=3000
+  while :; do
+    if [[ "$PLATFORM" == "windows" ]]; then
+      powershell.exe -Command "(Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue)" >/dev/null 2>&1 || {
+        echo $port; return;
+      }
+    else
+      lsof -i:$port >/dev/null 2>&1 || {
+        echo $port; return;
+      }
+    fi
+    port=$((port + 1))
+  done
+}
+
+# ----------- UI -----------
 echo "Choose project type:"
 echo "1) React (Web)"
 echo "2) Next.js (Web)"
 echo "3) React Native (Expo)"
 read -p "Enter number: " PROJECT_CHOICE
-PROJECT_CHOICE=$(echo "$PROJECT_CHOICE" | tr -d '\r')
+PROJECT_CHOICE=$(normalize "$PROJECT_CHOICE")
 
 read -p "Enter project name: " PROJECT_NAME
-PROJECT_NAME=$(echo "$PROJECT_NAME" | tr -d '\r')
+PROJECT_NAME=$(normalize "$PROJECT_NAME")
 
-# ----------- Project description -----------
-read -p "Enter project description / goal: " PROJECT_DESC
-PROJECT_DESC=$(echo "$PROJECT_DESC" | tr -d '\r')
+read -p "Enter project description: " PROJECT_DESC
 
-# ----------- Tailwind yes/no -----------
-read -p "Do you want to install Tailwind? (y/n) " INSTALL_TAILWIND
-INSTALL_TAILWIND=$(echo "$INSTALL_TAILWIND" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
+read -p "Install Tailwind? (y/n): " INSTALL_TAILWIND
+INSTALL_TAILWIND=$(normalize "$INSTALL_TAILWIND")
 
-# ----------- PWA yes/no (web only) -----------
 INSTALL_PWA="n"
 if [[ "$PROJECT_CHOICE" == "1" || "$PROJECT_CHOICE" == "2" ]]; then
-  read -p "Do you want to enable PWA support? (y/n) " INSTALL_PWA
-  INSTALL_PWA=$(echo "$INSTALL_PWA" | tr -d '\r' | tr '[:upper:]' '[:lower:]')
+  read -p "Enable PWA? (y/n): " INSTALL_PWA
+  INSTALL_PWA=$(normalize "$INSTALL_PWA")
 fi
 
 # ----------- Docs / Components / Hooks -----------
@@ -183,7 +195,6 @@ if [[ "$PROJECT_CHOICE" == "1" ]]; then
   npx create-react-app "$PROJECT_NAME"
   cd "$PROJECT_NAME"
   [[ "$INSTALL_TAILWIND" == "y" ]] && install_tailwind_react
-  [[ "$INSTALL_PWA" == "y" ]] && install_pwa_react
 
 elif [[ "$PROJECT_CHOICE" == "2" ]]; then
   npx create-next-app@latest "$PROJECT_NAME"
