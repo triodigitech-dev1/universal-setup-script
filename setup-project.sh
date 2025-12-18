@@ -2,7 +2,7 @@
 
 # ==================================================
 # UNIVERSAL REACT / NEXT / EXPO SETUP SCRIPT
-# COOL VERSION: SAFE Webpack + PWA + Tailwind + Build Fix
+# FULL VERSION: Webpack + PWA + Tailwind + Manifest + Icons
 # ==================================================
 
 echo "🚀 Welcome to the Project Setup Script!"
@@ -111,7 +111,41 @@ const nextConfig = {
 
 module.exports = withPWA(nextConfig);
 EOF
-  echo "✅ PWA configured successfully (SW disabled in dev)"
+
+  echo "✅ PWA configured (SW disabled in dev)"
+
+  # ----------- Generate default manifest.json -----------
+  mkdir -p public
+  cat > public/manifest.json <<EOF
+{
+  "name": "$PROJECT_NAME",
+  "short_name": "PWA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+EOF
+  # ----------- Create placeholder icons -----------
+  if ! command -v convert >/dev/null 2>&1; then
+    echo "⚠️ ImageMagick not found. Please add icons manually to public/."
+  else
+    convert -size 192x192 xc:gray public/icon-192.png
+    convert -size 512x512 xc:gray public/icon-512.png
+    echo "✅ Default PWA icons created in public/"
+  fi
 }
 
 # ----------- Folder & Metadata Functions -----------
@@ -214,3 +248,4 @@ fi
 echo ""
 echo "🎉 Project setup complete! Ready for development."
 echo "💡 To test production PWA: npm run build && npm run start"
+echo "💡 After production start, open DevTools → Application → Service Workers → Install App button should appear"
