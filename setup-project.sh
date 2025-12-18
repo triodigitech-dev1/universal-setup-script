@@ -2,7 +2,7 @@
 
 # ==================================================
 # UNIVERSAL REACT / NEXT / EXPO SETUP SCRIPT
-# COOL VERSION: INTERACTIVE + SAFE + FUTURE-PROOF
+# COOL VERSION: SAFE Webpack + PWA + Tailwind
 # ==================================================
 
 echo "🚀 Welcome to the Project Setup Script!"
@@ -19,12 +19,7 @@ echo "🌐 Detected platform: $PLATFORM"
 
 # ----------- Helpers -----------
 normalize() { echo "$1" | tr -d '\r' | tr '[:upper:]' '[:lower:]'; }
-
-run_tailwind_init() {
-  echo "⚡ Initializing Tailwind CSS..."
-  npm exec --yes tailwindcss init -p || echo "⚠️ Tailwind init failed"
-}
-
+run_tailwind_init() { echo "⚡ Initializing Tailwind CSS..."; npm exec --yes tailwindcss init -p || echo "⚠️ Tailwind init failed"; }
 clean_next_dev() { [[ -f .next/dev/lock ]] && rm -f .next/dev/lock; }
 
 # ----------- User Input -----------
@@ -93,11 +88,12 @@ install_pwa_next() {
   echo "📦 Installing next-pwa..."
   npm install next-pwa
   clean_next_dev
-  echo "🔧 Writing valid next.config.js with PWA support..."
+  echo "🔧 Writing dev-safe next.config.js with PWA support..."
   cat > next.config.js <<EOF
 /** @type {import('next').NextConfig} */
 const withPWA = require('next-pwa')({
   dest: 'public',
+  disable: process.env.NODE_ENV === 'development' // disables SW in dev
 });
 
 const nextConfig = {
@@ -106,7 +102,7 @@ const nextConfig = {
 
 module.exports = withPWA(nextConfig);
 EOF
-  echo "✅ PWA configured successfully"
+  echo "✅ PWA configured successfully (SW disabled in dev)"
 }
 
 # ----------- Folder & Metadata Functions -----------
@@ -181,13 +177,19 @@ fi
 create_metadata
 update_readme
 
+# ----------- Ensure Webpack in dev scripts -----------
+if [[ "$PROJECT_CHOICE" == "2" ]]; then
+  echo "🔧 Overwriting package.json dev script to force Webpack..."
+  npm pkg set scripts.dev="next dev --webpack"
+fi
+
 # ----------- Auto Start Dev Server -----------
 if [[ "$AUTO_START" == "y" ]]; then
   echo ""
   echo "⚡ Starting dev server..."
   if [[ "$PROJECT_CHOICE" == "2" ]]; then
     echo "🌐 Next.js dev server (Webpack mode)"
-    npm run dev -- --webpack
+    npm run dev
   elif [[ "$PROJECT_CHOICE" == "1" ]]; then
     echo "🌐 React (CRA) dev server"
     npm start
@@ -198,4 +200,4 @@ if [[ "$AUTO_START" == "y" ]]; then
 fi
 
 echo ""
-echo "🎉 Project setup complete! All ready to go!"
+echo "🎉 Project setup complete! Ready for development."
